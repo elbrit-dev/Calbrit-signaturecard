@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Hydrox Platform — Feedback Form</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sofia&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="stage" id="stage">
+    <div id="nameRow">DR.<input id="nameInput" placeholder="name" autocomplete="off">is a prescriber of CALBRIT 60K</div>
+    <textarea id="feedback" placeholder=""></textarea>
+    <div id="photoBox">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="photoImg" alt="Captured photo">
+    </div>
+    <canvas id="sigPad"></canvas>
+  </div>
+
+  <div class="controls">
+    <span class="label">Photo</span>
+    <div class="group" id="grpStart">
+      <button class="primary" id="openCam">📷 Open camera</button>
+      <button class="ghost" id="uploadBtn">Upload / phone camera</button>
+    </div>
+    <div class="group" id="grpLive" style="display:none">
+      <button class="primary" id="snap">Capture photo</button>
+      <button class="ghost" id="cancelCam">Cancel</button>
+    </div>
+    <div class="group" id="grpRetake" style="display:none">
+      <button class="ghost" id="retake">Retake photo</button>
+    </div>
+
+    <span class="spacer"></span>
+    <span class="label">Signature</span>
+    <button class="ghost" id="clearSig">Clear</button>
+    <div class="bar"></div>
+    <button class="ghost" id="resetAll">Reset form</button>
+    <button class="primary" id="downloadBtn">⬇ Download JPEG</button>
+    <input type="file" id="fileInput" accept="image/*" capture="user" hidden>
+    <div class="hint" id="hint">Click “Open camera”, then “Capture photo” — it drops straight into the YOUR PHOTO box. On phones, “Upload / phone camera” opens the native camera.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

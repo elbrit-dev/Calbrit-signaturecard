@@ -1,0 +1,50 @@
+:root{--navy:#16266b;--blue:#2b7de9;--ink:#13204a;--line:#c9d3ec;--muted:#6b7aa3}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:#eef2fb;color:var(--ink);padding:22px 14px 40px}
+.wrap{max-width:1100px;margin:0 auto}
+
+/* The original picture IS the form. Overlays sit on top of it. */
+.stage{position:relative;width:100%;aspect-ratio:1402/1122;container-type:inline-size;
+  background-size:100% 100%;background-repeat:no-repeat;
+  border-radius:10px;overflow:hidden;box-shadow:0 16px 44px rgba(22,38,107,.18)}
+
+/* editable prescriber sentence under the logo */
+#nameRow{position:absolute;left:4%;right:4%;top:18.6%;text-align:center;white-space:nowrap;
+  font:3cqw 'Lucida Calligraphy','Lucida Handwriting','Sofia',cursive;color:var(--navy)}
+#nameInput{font:inherit;color:var(--ink);text-align:center;border:none;border-bottom:none;
+  background:transparent;outline:none;width:16ch;margin:0 .5ch;padding:0 .3ch}
+#nameInput::placeholder{color:#9fb0d6;font-weight:600}
+
+/* FEEDBACK typing area — text sits on the printed lines */
+#feedback{position:absolute;left:52.42%;top:32.98%;width:40.66%;height:17.38%;
+  background:transparent;border:none;outline:none;resize:none;overflow:hidden;
+  color:var(--ink);font-family:inherit;font-size:1.6cqw;line-height:2.2cqw;padding:0;margin:0}
+#feedback::placeholder{color:#9fb0d6}
+
+/* YOUR PHOTO box — exact dashed-box region; video preview + captured photo land here */
+#photoBox{position:absolute;left:6.78%;top:27.18%;width:43.15%;height:53.48%;
+  overflow:hidden;border-radius:8px}
+#video,#photoImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+#video{background:#000}
+#photoImg.show,#video.show{display:block}
+
+/* SIGNATURE area — transparent canvas above the printed signature line */
+#sigPad{position:absolute;left:52.2%;top:60.16%;width:41.1%;height:14.26%;
+  background:transparent;touch-action:none;cursor:crosshair}
+
+/* control bar lives below the picture so the form stays clean */
+.controls{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.group{display:flex;gap:8px;flex-wrap:wrap}
+.label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-right:2px;align-self:center}
+button{font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:none;border-radius:9px;padding:11px 16px;transition:.15s}
+.primary{background:linear-gradient(135deg,var(--blue),var(--navy));color:#fff}
+.primary:hover{filter:brightness(1.08)}
+.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+.ghost:hover{border-color:var(--navy)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.bar{width:100%;height:1px;background:var(--line);margin:4px 0}
+.hint{width:100%;font-size:12px;color:var(--muted)}
+.spacer{flex:1}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:50}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media print{.controls{display:none}body{background:#fff;padding:0}.stage{box-shadow:none}}

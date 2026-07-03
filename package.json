@@ -1,0 +1,19 @@
+{
+  "name": "hydrox-feedback-form",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Standalone Hydrox prescriber feedback form — client-side JPEG export with crisp mobile signature capture.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "signature_pad": "^5.0.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^6.0.5"
+  }
+}
