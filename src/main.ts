@@ -21,17 +21,32 @@ const stage = $("stage");
 
 stage.style.backgroundImage = `url('${FORM_IMG}')`;
 
-/* ---------------- Name field: size to content ---------------- */
-/* A fixed-width input leaves big gaps around short names. Grow the input
-   to fit its text so "DR. <name> is a prescriber…" stays tight and centred. */
+/* ---------------- Name field: fit the whole sentence on one line ----------
+   Short names shouldn't leave big gaps; long names shouldn't overflow the
+   form. So: (1) grow the input to fit its text, then (2) shrink the whole
+   "DR. <name> is a prescriber of CALBRIT 60K" line's font-size until it fits
+   the available width. Because the input width is in `ch`, it scales with the
+   font too, so everything stays proportional and centred. */
 const nameInput = $<HTMLInputElement>("nameInput");
-function sizeNameInput() {
+const nameRow = $("nameRow");
+const NAME_MIN_PX = 7; // floor; below the small mobile base so long names can still shrink to fit
+
+function fitNameRow() {
   const v = nameInput.value || nameInput.placeholder || "";
-  // +1ch breathing room, clamped to a sensible min/max
-  nameInput.style.width = Math.min(Math.max(v.length + 1, 5), 24) + "ch";
+  nameInput.style.width = Math.max(v.length + 1, 5) + "ch";
+  nameRow.style.fontSize = ""; // back to the CSS base (3cqw) before measuring
+  let size = parseFloat(getComputedStyle(nameRow).fontSize);
+  let guard = 0;
+  while (nameRow.scrollWidth > nameRow.clientWidth + 1 && size > NAME_MIN_PX && guard < 120) {
+    size -= 0.5;
+    nameRow.style.fontSize = size + "px";
+    guard++;
+  }
 }
-nameInput.addEventListener("input", sizeNameInput);
-sizeNameInput();
+nameInput.addEventListener("input", fitNameRow);
+window.addEventListener("resize", fitNameRow);
+window.addEventListener("orientationchange", fitNameRow);
+fitNameRow();
 
 function toast(m: string) {
   const t = $("toast");
@@ -239,24 +254,36 @@ async function buildJpeg(): Promise<string> {
   const base = await loadImg(FORM_IMG);
   ctx.drawImage(base, 0, 0, W, H);
 
-  // editable prescriber sentence under the logo
-  ctx.font = "46px 'Lucida Calligraphy','Lucida Handwriting','Sofia',cursive";
-  ctx.textBaseline = "alphabetic";
+  // editable prescriber sentence under the logo — scaled to stay within the
+  // form margins so a long name never runs off the edge (mirrors the on-screen fit).
   const nm = $<HTMLInputElement>("nameInput").value.trim();
   const pre = "DR. ",
     post = " is a prescriber of CALBRIT 60K";
-  const preW = ctx.measureText(pre).width,
-    postW = ctx.measureText(post).width;
-  const nameW = Math.max(ctx.measureText(nm).width + 16, 180);
-  const total = preW + nameW + postW;
-  const sx = (W - total) / 2;
+  const NAME_FONT = "'Lucida Calligraphy','Lucida Handwriting','Sofia',cursive";
+  const maxLineW = W - 130; // side margins
+  const measureAt = (px: number) => {
+    ctx.font = px + "px " + NAME_FONT;
+    const preW = ctx.measureText(pre).width;
+    const postW = ctx.measureText(post).width;
+    const nameW = Math.max(ctx.measureText(nm).width + 16, (180 * px) / 46);
+    return { preW, postW, nameW, total: preW + nameW + postW };
+  };
+  let fontPx = 46;
+  let m = measureAt(fontPx);
+  if (m.total > maxLineW) {
+    fontPx = Math.max((fontPx * maxLineW) / m.total, 18);
+    m = measureAt(fontPx);
+  }
+  ctx.font = fontPx + "px " + NAME_FONT;
+  ctx.textBaseline = "alphabetic";
+  const sx = (W - m.total) / 2;
   const yb = 248;
   ctx.fillStyle = "#0a1f5c";
   ctx.fillText(pre, sx, yb);
   ctx.fillStyle = "#13204a";
-  ctx.fillText(nm, sx + preW + (nameW - ctx.measureText(nm).width) / 2, yb);
+  ctx.fillText(nm, sx + m.preW + (m.nameW - ctx.measureText(nm).width) / 2, yb);
   ctx.fillStyle = "#0a1f5c";
-  ctx.fillText(post, sx + preW + nameW, yb);
+  ctx.fillText(post, sx + m.preW + m.nameW, yb);
 
   // 2) feedback text on the ruled lines
   const txt = $<HTMLTextAreaElement>("feedback").value;
