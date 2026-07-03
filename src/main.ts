@@ -21,6 +21,18 @@ const stage = $("stage");
 
 stage.style.backgroundImage = `url('${FORM_IMG}')`;
 
+/* ---------------- Name field: size to content ---------------- */
+/* A fixed-width input leaves big gaps around short names. Grow the input
+   to fit its text so "DR. <name> is a prescriber…" stays tight and centred. */
+const nameInput = $<HTMLInputElement>("nameInput");
+function sizeNameInput() {
+  const v = nameInput.value || nameInput.placeholder || "";
+  // +1ch breathing room, clamped to a sensible min/max
+  nameInput.style.width = Math.min(Math.max(v.length + 1, 5), 24) + "ch";
+}
+nameInput.addEventListener("input", sizeNameInput);
+sizeNameInput();
+
 function toast(m: string) {
   const t = $("toast");
   t.textContent = m;
@@ -43,7 +55,8 @@ function openLive() {
 $("openCam").addEventListener("click", async () => {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
+      // Prefer the rear camera so it's easy to photograph the doctor.
+      video: { facingMode: { ideal: "environment" } },
       audio: false,
     });
     video.srcObject = stream;
