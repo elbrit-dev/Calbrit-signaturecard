@@ -11,6 +11,91 @@ import FORM_IMG from "./assets/form.png";
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 
+/* ---------------- ERP (Forms Pro) submission config ----------------
+ * The composed JPEG is submitted into the "Prescribtion form" in ERPNext
+ * (Forms Pro). We replicate exactly what the public form does:
+ *   1) POST the image to /api/method/upload_file  → returns a /files/… URL
+ *   2) POST that URL to submit_form_response       → creates the submission
+ * The rep is identified by ?emp=<employee id> in this page's URL; that id is
+ * sent as an extra field so ERP can group submissions by employee/HQ/team.  */
+const ERP_BASE = "https://erp.elbrit.org";
+const FORM_ID = "cdggrub9kd"; // Forms Pro Form record for "Prescribtion form"
+const IMAGE_FIELDNAME = "doctor_image"; // the Attach field on that form
+
+/* Employee context is baked into each rep's link and passed straight through
+ * to matching hidden fields on the form, so every submission (and the exported
+ * sheet) is self-contained: who submitted, their HQ and department. Each entry
+ * maps a URL query param → the Forms Pro fieldname it fills. Values that aren't
+ * present in the link are simply skipped, so a plain link still works.
+ * Example link: https://…/?emp=E00826&name=Praveen%20M&hq=HQ-Chennai&dept=CND%20Chennai%20-%20ELPL */
+const LINK_FIELDS: { param: string; fieldname: string }[] = [
+  { param: "emp", fieldname: "emp_id" },
+  { param: "name", fieldname: "employee_name" },
+  { param: "hq", fieldname: "hq" },
+  { param: "dept", fieldname: "department" },
+];
+
+/** Employee id from the link, e.g. https://…/?emp=E00826 (used for the filename). */
+function getEmpId(): string {
+  return (new URLSearchParams(location.search).get("emp") || "").trim();
+}
+
+/** The employee context fields present in the link, as Forms Pro {fieldname,value} pairs. */
+function linkFields(): { fieldname: string; value: string }[] {
+  const p = new URLSearchParams(location.search);
+  return LINK_FIELDS.map(({ param, fieldname }) => ({
+    fieldname,
+    value: (p.get(param) || "").trim(),
+  })).filter((f) => f.value);
+}
+
+/** Turn a data: URL (from canvas.toDataURL) into a Blob for multipart upload. */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [head, b64] = dataUrl.split(",");
+  const mime = head.match(/:(.*?);/)?.[1] || "image/jpeg";
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+/** Upload the JPEG to Frappe; returns the stored file_url (e.g. "/files/x.jpg"). */
+async function uploadImage(blob: Blob, filename: string): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", blob, filename);
+  fd.append("is_private", "0");
+  fd.append("folder", "Home");
+  const res = await fetch(`${ERP_BASE}/api/method/upload_file`, {
+    method: "POST",
+    body: fd,
+  });
+  if (!res.ok) throw new Error(`upload_file HTTP ${res.status}`);
+  const url = (await res.json())?.message?.file_url;
+  if (!url) throw new Error("upload_file returned no file_url");
+  return url;
+}
+
+/** Create the Forms Pro submission with the uploaded image + employee context. */
+async function submitToErp(fileUrl: string): Promise<void> {
+  const form_data: { fieldname: string; value: string }[] = [
+    { fieldname: IMAGE_FIELDNAME, value: fileUrl },
+    ...linkFields(),
+  ];
+  const res = await fetch(
+    `${ERP_BASE}/api/method/forms_pro.api.submission.submit_form_response`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        form_id: FORM_ID,
+        form_data,
+        submission_status: "Submitted",
+      }),
+    },
+  );
+  if (!res.ok) throw new Error(`submit_form_response HTTP ${res.status}`);
+}
+
 let stream: MediaStream | null = null;
 let photoData: string | null = null;
 
@@ -321,19 +406,37 @@ async function buildJpeg(): Promise<string> {
 }
 
 $("downloadBtn").addEventListener("click", async () => {
+  const btn = $<HTMLButtonElement>("downloadBtn");
+  btn.disabled = true;
   hint.textContent = "Building image…";
   try {
-    const url = await buildJpeg();
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "hydrox-feedback-form.jpg";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    hint.textContent = "Downloaded hydrox-feedback-form.jpg ✓";
-    toast("JPEG downloaded ✓");
-  } catch {
-    hint.textContent =
-      "Could not build the image here — open this file directly in your browser to download.";
+    const empId = getEmpId();
+    const blob = dataUrlToBlob(await buildJpeg());
+    const filename = `prescription-${empId || "form"}-${Date.now()}.jpg`;
+
+    hint.textContent = "Uploading to ERP…";
+    const fileUrl = await uploadImage(blob, filename);
+
+    hint.textContent = "Saving submission…";
+    await submitToErp(fileUrl);
+
+    hint.textContent = "Submitted to ERP ✓";
+    toast("Submitted to ERP ✓");
+
+    // Clear for the next entry (form stays on-page). Photo/signature reset;
+    // the name is kept since the same rep often submits several in a row.
+    $<HTMLTextAreaElement>("feedback").value = "";
+    signaturePad.clear();
+    photoData = null;
+    photoImg.classList.remove("show");
+    stopStream();
+    resetPhotoUI();
+    show($("grpRetake"), false);
+  } catch (e) {
+    // Keep the form intact so the rep can retry without re-entering anything.
+    hint.textContent = `Could not submit to ERP — ${(e as Error).message}. Please try again.`;
+    toast("Submit failed");
+  } finally {
+    btn.disabled = false;
   }
 });
