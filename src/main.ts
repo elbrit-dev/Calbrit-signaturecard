@@ -77,8 +77,12 @@ async function uploadImage(blob: Blob, filename: string): Promise<string> {
 
 /** Create the Forms Pro submission with the uploaded image + employee context. */
 async function submitToErp(fileUrl: string): Promise<void> {
+  // upload_file returns a site-relative path ("/files/x.jpg"); build the full
+  // clickable link so the exported sheet has a directly-openable URL column.
+  const fullLink = /^https?:\/\//i.test(fileUrl) ? fileUrl : ERP_BASE + fileUrl;
   const form_data: { fieldname: string; value: string }[] = [
     { fieldname: IMAGE_FIELDNAME, value: fileUrl },
+    { fieldname: "image_link", value: fullLink },
     ...linkFields(),
   ];
   const res = await fetch(
@@ -115,10 +119,22 @@ stage.style.backgroundImage = `url('${FORM_IMG}')`;
 const nameInput = $<HTMLInputElement>("nameInput");
 const nameRow = $("nameRow");
 const NAME_MIN_PX = 7; // floor; below the small mobile base so long names can still shrink to fit
+const nameMeasureCtx = document.createElement("canvas").getContext("2d")!;
+
+/** Width of `text` in the input's font, expressed in em (font-size independent),
+ *  so wide cursive capitals get the room they need and never clip. */
+function nameEmWidth(text: string): number {
+  const cs = getComputedStyle(nameInput);
+  const px = parseFloat(cs.fontSize) || 16;
+  nameMeasureCtx.font = `${cs.fontStyle} ${cs.fontWeight} ${px}px ${cs.fontFamily}`;
+  return nameMeasureCtx.measureText(text).width / px;
+}
 
 function fitNameRow() {
   const v = nameInput.value || nameInput.placeholder || "";
-  nameInput.style.width = Math.max(v.length + 1, 5) + "ch";
+  // Size to the real measured text (in em, so it still scales with the shrink
+  // loop below), plus a little slack for padding and the caret.
+  nameInput.style.width = Math.max(nameEmWidth(v) + 0.8, 3) + "em";
   nameRow.style.fontSize = ""; // back to the CSS base (3cqw) before measuring
   let size = parseFloat(getComputedStyle(nameRow).fontSize);
   let guard = 0;
